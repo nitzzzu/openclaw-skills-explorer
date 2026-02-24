@@ -65,7 +65,13 @@ export function useSkillsData() {
               COUNT(DISTINCT category) FILTER (WHERE NOT is_deleted) AS total_categories,
               COUNT(*) FILTER (WHERE scan_risk_level != 'UNKNOWN' AND NOT is_deleted) AS total_scanned,
               COUNT(*) FILTER (WHERE scan_risk_level IN ('CRITICAL','HIGH') AND NOT is_deleted) AS high_risk,
-              COUNT(*) FILTER (WHERE is_blacklisted) AS blacklisted
+              COUNT(*) FILTER (WHERE is_blacklisted) AS blacklisted,
+              COALESCE(SUM(folder_size_bytes) FILTER (WHERE NOT is_deleted), 0) AS total_size_bytes,
+              COALESCE(SUM(file_count)        FILTER (WHERE NOT is_deleted), 0) AS total_files,
+              COALESCE(SUM(script_count)      FILTER (WHERE NOT is_deleted), 0) AS total_scripts,
+              COALESCE(SUM(md_count)          FILTER (WHERE NOT is_deleted), 0) AS total_mds,
+              COALESCE(AVG(folder_size_bytes) FILTER (WHERE NOT is_deleted AND folder_size_bytes > 0), 0) AS avg_size_bytes,
+              COUNT(*) FILTER (WHERE script_count > 0 AND NOT is_deleted) AS skills_with_scripts
             FROM skills
           `,
           ),
@@ -134,7 +140,8 @@ export function useSkillsData() {
             `
             SELECT skill_path, skill_name, skill_author, skill_display_name,
                    skill_description, category, scan_risk_level AS level,
-                   scan_findings_count AS findings, date_added
+                   scan_findings_count AS findings, date_added,
+                   folder_size_bytes, file_count, script_count, md_count
             FROM skills WHERE NOT is_deleted
             ORDER BY date_added DESC NULLS LAST
           `,
@@ -195,6 +202,10 @@ export function useSkillsData() {
           browseSkills: browseSkills.map((r) => ({
             ...r,
             findings: Number(r.findings),
+            folder_size_bytes: Number(r.folder_size_bytes ?? 0),
+            file_count: Number(r.file_count ?? 0),
+            script_count: Number(r.script_count ?? 0),
+            md_count: Number(r.md_count ?? 0),
           })),
           findingsBySkill: allFindings.reduce((acc, r) => {
             if (!acc[r.skill_path]) acc[r.skill_path] = [];

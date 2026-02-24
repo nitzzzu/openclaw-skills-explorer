@@ -13,6 +13,13 @@ function fmt(s) {
   return isNaN(d) ? String(s) : d.toISOString().slice(0, 10);
 }
 
+function fmtSize(bytes) {
+  if (!bytes) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 const RISK_ORDER = {
   CRITICAL: 0,
   HIGH: 1,
@@ -70,7 +77,15 @@ export function BrowseSection({ data }) {
       if (sortKey === "date_added") {
         av = av ? new Date(av).getTime() : 0;
         bv = bv ? new Date(bv).getTime() : 0;
-      } else if (sortKey === "findings") {
+      } else if (
+        [
+          "findings",
+          "file_count",
+          "script_count",
+          "md_count",
+          "folder_size_bytes",
+        ].includes(sortKey)
+      ) {
         av = Number(av) || 0;
         bv = Number(bv) || 0;
       } else if (sortKey === "level") {
@@ -115,6 +130,10 @@ export function BrowseSection({ data }) {
     { key: "level", label: "Risk", right: false },
     { key: "findings", label: "Findings", right: true },
     { key: "date_added", label: "Added", right: true },
+    { key: "file_count", label: "Files", right: true },
+    { key: "script_count", label: "Scripts", right: true },
+    { key: "md_count", label: "Docs", right: true },
+    { key: "folder_size_bytes", label: "Size", right: true },
   ];
 
   return (
@@ -201,7 +220,7 @@ export function BrowseSection({ data }) {
           <tbody>
             {paged.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-[#9e9e9e]">
+                <td colSpan={10} className="py-8 text-center text-[#9e9e9e]">
                   No skills match your filters.
                 </td>
               </tr>
@@ -285,6 +304,26 @@ export function BrowseSection({ data }) {
                 {/* Date */}
                 <td className="py-1.5 text-right text-[#9e9e9e] tabular-nums">
                   {fmt(row.date_added)}
+                </td>
+
+                {/* Files */}
+                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                  {row.file_count > 0 ? row.file_count : "—"}
+                </td>
+
+                {/* Scripts */}
+                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                  {row.script_count > 0 ? row.script_count : "—"}
+                </td>
+
+                {/* Docs */}
+                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                  {row.md_count > 0 ? row.md_count : "—"}
+                </td>
+
+                {/* Size */}
+                <td className="py-1.5 text-right tabular-nums text-[#6b6b6b]">
+                  {fmtSize(row.folder_size_bytes)}
                 </td>
               </tr>
             ))}

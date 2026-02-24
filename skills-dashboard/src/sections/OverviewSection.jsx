@@ -30,6 +30,15 @@ function fmt(n) {
   return Number(n).toLocaleString();
 }
 
+function fmtSize(bytes) {
+  const b = Number(bytes);
+  if (!b) return "0 B";
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 export function OverviewSection({ data }) {
   const { stats, monthly, categories } = data;
 
@@ -41,6 +50,17 @@ export function OverviewSection({ data }) {
   const scannedPct =
     active > 0 ? ((scanned / active) * 100).toFixed(1) + "%" : "0%";
   const highRisk = fmt(Number(stats.high_risk));
+
+  // Corpus stats
+  const totalSizeBytes = Number(stats.total_size_bytes ?? 0);
+  const totalFiles = Number(stats.total_files ?? 0);
+  const totalScripts = Number(stats.total_scripts ?? 0);
+  const totalMds = Number(stats.total_mds ?? 0);
+  const avgSizeBytes = Number(stats.avg_size_bytes ?? 0);
+  const skillsWithScripts = Number(stats.skills_with_scripts ?? 0);
+  const scriptPct =
+    active > 0 ? ((skillsWithScripts / active) * 100).toFixed(1) + "%" : "0%";
+  const avgFilesPerSkill = active > 0 ? (totalFiles / active).toFixed(1) : "0";
 
   const topCat = categories[0];
   const top3Cats = categories
@@ -81,6 +101,46 @@ export function OverviewSection({ data }) {
             value={highRisk}
             sub="security issues found"
             accent={Number(stats.high_risk) > 0 ? "negative" : "positive"}
+          />
+        </div>
+      </div>
+
+      {/* Corpus KPI strip */}
+      <div>
+        <SectionTitle sub="Aggregate size and content breakdown across all active skills">
+          Corpus Stats
+        </SectionTitle>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <MetricCard
+            label="Total Size"
+            value={fmtSize(totalSizeBytes)}
+            sub="all skill folders combined"
+          />
+          <MetricCard
+            label="Avg Size / Skill"
+            value={fmtSize(avgSizeBytes)}
+            sub="mean folder size"
+          />
+          <MetricCard
+            label="Total Files"
+            value={fmt(totalFiles)}
+            sub={`~${avgFilesPerSkill} files/skill`}
+          />
+          <MetricCard
+            label="Scripts (sh/py)"
+            value={fmt(totalScripts)}
+            sub={`${scriptPct} of skills have scripts`}
+          />
+          <MetricCard
+            label="Markdown Docs"
+            value={fmt(totalMds)}
+            sub="total .md files"
+          />
+          <MetricCard
+            label="Skills w/ Scripts"
+            value={fmt(skillsWithScripts)}
+            sub={`${scriptPct} of catalog`}
+            accent={skillsWithScripts > 0 ? "negative" : "positive"}
           />
         </div>
       </div>
@@ -201,6 +261,18 @@ export function OverviewSection({ data }) {
                 discoverable
               </li>
               <li>→ Top 3 domains: {top3Cats}</li>
+              <li>
+                → Catalog totals <strong>{fmtSize(totalSizeBytes)}</strong> of
+                skill content
+              </li>
+              <li>
+                → <strong>{fmt(totalMds)}</strong> Markdown docs across all
+                skills (avg{" "}
+                <strong>
+                  {active > 0 ? (totalMds / active).toFixed(1) : 0}
+                </strong>{" "}
+                per skill)
+              </li>
             </ul>
           </div>
           <div className="border border-dashed border-[#c6392c] p-4">
@@ -219,6 +291,15 @@ export function OverviewSection({ data }) {
               <li>
                 → Low scan coverage ({scannedPct}) — blind spots remain in the
                 catalog
+              </li>
+              <li>
+                → <strong>{fmt(skillsWithScripts)}</strong> skills ({scriptPct})
+                contain executable scripts (sh/py) — review for malicious code
+              </li>
+              <li>
+                → <strong>{fmt(totalScripts)}</strong> total scripts across the
+                catalog; avg script-bearing skill is{" "}
+                <strong>{fmtSize(avgSizeBytes)}</strong>
               </li>
               <li>
                 → Run{" "}

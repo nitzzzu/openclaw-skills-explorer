@@ -492,6 +492,43 @@ def scan_skill_dir(skill_path: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Folder Stats
+# ---------------------------------------------------------------------------
+
+def get_folder_stats(skill_dir: Path) -> dict:
+    """Return total size in bytes, file count, script (.sh/.py) count, and md count."""
+    total_size = 0
+    file_count = 0
+    script_count = 0
+    md_count = 0
+    try:
+        for f in skill_dir.rglob("*"):
+            if not f.is_file():
+                continue
+            parts = f.relative_to(skill_dir).parts
+            if any(p.startswith(".") for p in parts):
+                continue
+            try:
+                total_size += f.stat().st_size
+            except OSError:
+                pass
+            file_count += 1
+            ext = f.suffix.lower()
+            if ext in (".sh", ".py"):
+                script_count += 1
+            if ext == ".md":
+                md_count += 1
+    except Exception:
+        pass
+    return {
+        "folder_size_bytes": total_size,
+        "file_count": file_count,
+        "script_count": script_count,
+        "md_count": md_count,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Skill Categorization (adapted from changelog.py)
 # ---------------------------------------------------------------------------
 
@@ -877,8 +914,18 @@ CREATE TABLE IF NOT EXISTS skills (
     scan_risk_level     VARCHAR DEFAULT 'UNKNOWN',
     scan_findings_count INTEGER DEFAULT 0,
     scan_date           TIMESTAMP,
-    raw_frontmatter     VARCHAR
+    raw_frontmatter     VARCHAR,
+    folder_size_bytes   BIGINT DEFAULT 0,
+    file_count          INTEGER DEFAULT 0,
+    script_count        INTEGER DEFAULT 0,
+    md_count            INTEGER DEFAULT 0
 );
+
+-- Migrations for existing databases
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS folder_size_bytes BIGINT DEFAULT 0;
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS file_count        INTEGER DEFAULT 0;
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS script_count      INTEGER DEFAULT 0;
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS md_count          INTEGER DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS scan_findings (
     id              INTEGER,
@@ -1127,6 +1174,11 @@ def upsert_skill(
         scan_date_val = datetime.now(timezone.utc)
         scan_findings_list = report.get("findings", [])
 
+    # Folder stats
+    folder_stats = get_folder_stats(skill_dir) if skill_dir.exists() else {
+        "folder_size_bytes": 0, "file_count": 0, "script_count": 0, "md_count": 0
+    }
+
     # Upsert
     if existing:
         date_added = existing[0]
@@ -1147,12 +1199,18 @@ def upsert_skill(
                 scan_risk_level = ?,
                 scan_findings_count = ?,
                 scan_date = ?,
-                raw_frontmatter = ?
+                raw_frontmatter = ?,
+                folder_size_bytes = ?,
+                file_count = ?,
+                script_count = ?,
+                md_count = ?
             WHERE skill_path = ?
         """, [
             skill_name, skill_author, display_name, description, version, tags,
             category, git_date, is_blacklisted, blacklist_reason,
             scan_risk, scan_count, scan_date_val, raw_fm,
+            folder_stats["folder_size_bytes"], folder_stats["file_count"],
+            folder_stats["script_count"], folder_stats["md_count"],
             skill_path,
         ])
     else:
@@ -1162,13 +1220,16 @@ def upsert_skill(
                 skill_description, skill_version, skill_tags, category,
                 date_added, date_updated, is_deleted, is_blacklisted,
                 blacklist_reason, scan_risk_level, scan_findings_count,
-                scan_date, raw_frontmatter
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, ?, ?, ?, ?, ?, ?)
+                scan_date, raw_frontmatter,
+                folder_size_bytes, file_count, script_count, md_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, [
             skill_path, skill_name, skill_author, display_name,
             description, version, tags, category,
             git_date, is_blacklisted, blacklist_reason,
             scan_risk, scan_count, scan_date_val, raw_fm,
+            folder_stats["folder_size_bytes"], folder_stats["file_count"],
+            folder_stats["script_count"], folder_stats["md_count"],
         ])
 
     # Store detailed findings
@@ -1302,7 +1363,11 @@ def export_parquet(con: duckdb.DuckDBPyConnection, out_dir: str):
                 blacklist_reason,
                 scan_risk_level,
                 scan_findings_count,
-                scan_date::VARCHAR    AS scan_date
+                scan_date::VARCHAR    AS scan_date,
+                folder_size_bytes,
+                file_count,
+                script_count,
+                md_count
             FROM skills
         ) TO '{skills_path}' (FORMAT PARQUET, COMPRESSION ZSTD)
     """)
