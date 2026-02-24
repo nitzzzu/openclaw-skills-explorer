@@ -19,8 +19,8 @@ export function useSkillsData() {
 
         setProgress('Fetching skills data (1.3 MB)...')
         const [skillsBuf, findingsBuf] = await Promise.all([
-          fetch('/skills.parquet').then(r => r.arrayBuffer()),
-          fetch('/findings.parquet').then(r => r.arrayBuffer()),
+          fetch(`${import.meta.env.BASE_URL}skills.parquet`).then(r => r.arrayBuffer()),
+          fetch(`${import.meta.env.BASE_URL}findings.parquet`).then(r => r.arrayBuffer()),
         ])
 
         if (cancelled) return
