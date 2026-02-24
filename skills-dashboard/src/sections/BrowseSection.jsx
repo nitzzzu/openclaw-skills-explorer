@@ -170,15 +170,14 @@ export function BrowseSection({ data, authorFilter }) {
   const COLS = [
     { key: "skill_path", label: "Skill", right: false },
     { key: "skill_author", label: "Author", right: false },
-    { key: "skill_version", label: "Version", right: false },
     { key: "category", label: "Category", right: false },
     { key: "level", label: "Risk", right: false },
     { key: "findings", label: "Findings", right: true },
-    { key: "date_added", label: "Added", right: true },
+    { key: "folder_size_bytes", label: "Size", right: true },
     { key: "file_count", label: "Files", right: true },
     { key: "script_count", label: "Scripts", right: true },
     { key: "md_count", label: "Docs", right: true },
-    { key: "folder_size_bytes", label: "Size", right: true },
+    { key: "date_added", label: "Added", right: true },
   ];
 
   return (
@@ -299,7 +298,7 @@ export function BrowseSection({ data, authorFilter }) {
           <tbody>
             {paged.length === 0 && (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-[#9e9e9e]">
+                <td colSpan={10} className="py-8 text-center text-[#9e9e9e]">
                   No skills match your filters.
                 </td>
               </tr>
@@ -309,16 +308,22 @@ export function BrowseSection({ data, authorFilter }) {
                 key={row.skill_path}
                 className={`border-b border-[#e4e0d6] hover:bg-[#f4f0e4] transition-colors ${i % 2 === 1 ? "bg-[#f9f5ee]" : ""}`}
               >
-                {/* Skill path + description */}
-                <td className="py-1.5 pr-3 w-[28%]">
-                  <span className="inline-flex items-center gap-1">
+                {/* Skill path + version + description */}
+                <td className="py-1.5 pr-3 max-w-0 w-[28%]">
+                  <span className="flex items-center gap-1 min-w-0">
                     <a
                       href={`${GH_BASE}${row.skill_path}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-mono text-[#3b6fd4] hover:underline break-all leading-tight"
+                      className="font-mono text-[#3b6fd4] hover:underline whitespace-nowrap overflow-hidden text-ellipsis leading-tight min-w-0 truncate"
+                      title={row.skill_path}
                     >
                       {row.skill_path.split("/").pop()}
+                      {row.skill_version && (
+                        <span className="text-[#9e9e9e] ml-1">
+                          v{row.skill_version.replace(/^v/i, "")}
+                        </span>
+                      )}
                     </a>
                     {row.skill_description && (
                       <button
@@ -359,16 +364,6 @@ export function BrowseSection({ data, authorFilter }) {
                   </div>
                 </td>
 
-                {/* Version */}
-                <td
-                  className="py-1.5 pr-3 font-mono text-[#6b6b6b] max-w-[80px] truncate"
-                  title={row.skill_version || ""}
-                >
-                  {row.skill_version || (
-                    <span className="text-[#c0bbb0]">—</span>
-                  )}
-                </td>
-
                 {/* Category */}
                 <td className="py-1.5 pr-3 text-[#6b6b6b] truncate max-w-[120px]">
                   {row.category}
@@ -401,9 +396,9 @@ export function BrowseSection({ data, authorFilter }) {
                   )}
                 </td>
 
-                {/* Date */}
-                <td className="py-1.5 text-right text-[#9e9e9e] tabular-nums">
-                  {fmt(row.date_added)}
+                {/* Size */}
+                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                  {fmtSize(row.folder_size_bytes)}
                 </td>
 
                 {/* Files */}
@@ -421,9 +416,9 @@ export function BrowseSection({ data, authorFilter }) {
                   {row.md_count > 0 ? row.md_count : "—"}
                 </td>
 
-                {/* Size */}
-                <td className="py-1.5 text-right tabular-nums text-[#6b6b6b]">
-                  {fmtSize(row.folder_size_bytes)}
+                {/* Added */}
+                <td className="py-1.5 text-right text-[#9e9e9e] tabular-nums whitespace-nowrap">
+                  {fmt(row.date_added)}
                 </td>
               </tr>
             ))}

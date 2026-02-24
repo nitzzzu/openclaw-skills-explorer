@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { MetricCard } from "../components/MetricCard";
 import { SectionTitle } from "../components/SectionTitle";
+import { useWindowWidth } from "../hooks/useWindowWidth";
 
 const CAT_COLORS = [
   "#d2836e",
@@ -50,6 +51,9 @@ const RISK_COLORS = {
 const THREAT_COLORS = ["#7b68ee", "#d2836e", "#c6392c", "#d4a843", "#4a9a8a"];
 
 export function OverviewSection({ data }) {
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 640;
+
   const {
     stats,
     monthly,
@@ -310,7 +314,12 @@ export function OverviewSection({ data }) {
             <BarChart
               data={findingsCats}
               layout="vertical"
-              margin={{ top: 4, right: 80, bottom: 4, left: 160 }}
+              margin={{
+                top: 4,
+                right: isMobile ? 8 : 80,
+                bottom: 4,
+                left: isMobile ? 0 : 160,
+              }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -325,8 +334,11 @@ export function OverviewSection({ data }) {
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ fontSize: 11, fontFamily: "IBM Plex Mono" }}
-                width={158}
+                tick={{
+                  fontSize: isMobile ? 10 : 11,
+                  fontFamily: "IBM Plex Mono",
+                }}
+                width={isMobile ? 90 : 158}
               />
               <Tooltip
                 contentStyle={{
@@ -359,7 +371,12 @@ export function OverviewSection({ data }) {
           <BarChart
             data={categories}
             layout="vertical"
-            margin={{ top: 4, right: 60, bottom: 4, left: 140 }}
+            margin={{
+              top: 4,
+              right: isMobile ? 8 : 60,
+              bottom: 4,
+              left: isMobile ? 0 : 140,
+            }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -373,8 +390,11 @@ export function OverviewSection({ data }) {
             <YAxis
               type="category"
               dataKey="name"
-              tick={{ fontSize: 11, fontFamily: "IBM Plex Mono" }}
-              width={138}
+              tick={{
+                fontSize: isMobile ? 10 : 11,
+                fontFamily: "IBM Plex Mono",
+              }}
+              width={isMobile ? 90 : 138}
             />
             <Tooltip
               contentStyle={{
@@ -404,7 +424,12 @@ export function OverviewSection({ data }) {
             <BarChart
               data={catRisk}
               layout="vertical"
-              margin={{ top: 4, right: 60, bottom: 4, left: 160 }}
+              margin={{
+                top: 4,
+                right: isMobile ? 8 : 60,
+                bottom: 4,
+                left: isMobile ? 0 : 160,
+              }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -420,8 +445,11 @@ export function OverviewSection({ data }) {
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ fontSize: 11, fontFamily: "IBM Plex Mono" }}
-                width={158}
+                tick={{
+                  fontSize: isMobile ? 10 : 11,
+                  fontFamily: "IBM Plex Mono",
+                }}
+                width={isMobile ? 90 : 158}
               />
               <Tooltip
                 contentStyle={{

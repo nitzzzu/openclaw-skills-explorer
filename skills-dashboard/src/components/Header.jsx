@@ -10,7 +10,7 @@ export function Header({ activeTab, onTab }) {
     <header className="border-b border-dashed border-[#393939] bg-[#fbf7eb] sticky top-0 z-10">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-12">
         {/* Brand */}
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3">
           <div className="w-5 h-5 border border-dashed border-[#393939] flex items-center justify-center">
             <div className="w-2 h-2 bg-[#141414]" />
           </div>

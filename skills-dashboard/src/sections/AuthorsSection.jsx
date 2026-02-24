@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { SectionTitle } from "../components/SectionTitle";
 import { Github } from "lucide-react";
+import { useWindowWidth } from "../hooks/useWindowWidth";
 
 const PALETTE = [
   "#d2836e",
@@ -40,6 +41,9 @@ const PALETTE = [
 ];
 
 export function AuthorsSection({ data, onAuthorClick }) {
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 640;
+
   const { authors } = data;
   const topAuthor = authors[0];
   const totalTopAuthors = authors.slice(0, 10).reduce((a, r) => a + r.cnt, 0);
@@ -82,7 +86,12 @@ export function AuthorsSection({ data, onAuthorClick }) {
           <BarChart
             data={authors}
             layout="vertical"
-            margin={{ top: 4, right: 60, bottom: 4, left: 130 }}
+            margin={{
+              top: 4,
+              right: isMobile ? 8 : 60,
+              bottom: 4,
+              left: isMobile ? 0 : 130,
+            }}
             onClick={(e) => {
               if (e?.activePayload?.[0]?.payload?.author && onAuthorClick) {
                 onAuthorClick(e.activePayload[0].payload.author);
@@ -101,8 +110,11 @@ export function AuthorsSection({ data, onAuthorClick }) {
             <YAxis
               type="category"
               dataKey="author"
-              tick={{ fontSize: 11, fontFamily: "IBM Plex Mono" }}
-              width={128}
+              tick={{
+                fontSize: isMobile ? 10 : 11,
+                fontFamily: "IBM Plex Mono",
+              }}
+              width={isMobile ? 90 : 128}
             />
             <Tooltip
               contentStyle={{
