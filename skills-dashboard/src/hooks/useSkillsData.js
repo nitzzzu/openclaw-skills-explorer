@@ -71,7 +71,10 @@ export function useSkillsData() {
               COALESCE(SUM(script_count)      FILTER (WHERE NOT is_deleted), 0) AS total_scripts,
               COALESCE(SUM(md_count)          FILTER (WHERE NOT is_deleted), 0) AS total_mds,
               COALESCE(AVG(folder_size_bytes) FILTER (WHERE NOT is_deleted AND folder_size_bytes > 0), 0) AS avg_size_bytes,
-              COUNT(*) FILTER (WHERE script_count > 0 AND NOT is_deleted) AS skills_with_scripts
+              COUNT(*) FILTER (WHERE script_count > 0 AND NOT is_deleted) AS skills_with_scripts,
+              COUNT(*) FILTER (WHERE (skill_version IS NULL OR trim(skill_version) = '') AND NOT is_deleted) AS no_version_count,
+              COUNT(*) FILTER (WHERE (skill_description IS NULL OR trim(skill_description) = '') AND NOT is_deleted) AS no_desc_count,
+              COUNT(*) FILTER (WHERE folder_size_bytes = 0 AND NOT is_deleted) AS zero_size_count
             FROM skills
           `,
           ),
@@ -139,7 +142,7 @@ export function useSkillsData() {
             db,
             `
             SELECT skill_path, skill_name, skill_author, skill_display_name,
-                   skill_description, category, scan_risk_level AS level,
+                   skill_description, skill_version, category, scan_risk_level AS level,
                    scan_findings_count AS findings, date_added,
                    folder_size_bytes, file_count, script_count, md_count
             FROM skills WHERE NOT is_deleted
@@ -201,6 +204,7 @@ export function useSkillsData() {
           })),
           browseSkills: browseSkills.map((r) => ({
             ...r,
+            skill_version: r.skill_version || "",
             findings: Number(r.findings),
             folder_size_bytes: Number(r.folder_size_bytes ?? 0),
             file_count: Number(r.file_count ?? 0),

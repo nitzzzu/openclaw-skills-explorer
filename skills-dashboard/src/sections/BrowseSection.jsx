@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { SectionTitle } from "../components/SectionTitle";
 import { RiskBadge } from "../components/RiskBadge";
 import { FindingsModal } from "../components/FindingsModal";
-import { Info } from "lucide-react";
+import { Info, Github } from "lucide-react";
 
 const PER_PAGE = 50;
 const GH_BASE = "https://github.com/openclaw/skills/tree/main/skills/";
@@ -40,6 +40,8 @@ export function BrowseSection({ data, authorFilter }) {
   const [query, setQuery] = useState(authorFilter || "");
   const [catFilter, setCatFilter] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
+  const [findingRuleFilter, setFindingRuleFilter] = useState("");
+  const [findingCatFilter, setFindingCatFilter] = useState("");
   const [sortKey, setSortKey] = useState("date_added");
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(0);
@@ -58,6 +60,37 @@ export function BrowseSection({ data, authorFilter }) {
     return [...s].sort();
   }, [browseSkills]);
 
+  // Derive unique rule_ids and finding categories from the findings index
+  const { ruleList, findingCatList } = useMemo(() => {
+    const rules = new Set();
+    const cats = new Set();
+    Object.values(findingsBySkill || {}).forEach((findings) => {
+      findings.forEach((f) => {
+        if (f.rule_id) rules.add(f.rule_id);
+        if (f.rule_cat) cats.add(f.rule_cat);
+      });
+    });
+    return {
+      ruleList: [...rules].sort(),
+      findingCatList: [...cats].sort(),
+    };
+  }, [findingsBySkill]);
+
+  // Precompute a set of skill_paths that match active finding filters
+  const findingFilteredPaths = useMemo(() => {
+    if (!findingRuleFilter && !findingCatFilter) return null;
+    const result = new Set();
+    Object.entries(findingsBySkill || {}).forEach(([path, findings]) => {
+      const match = findings.some(
+        (f) =>
+          (!findingRuleFilter || f.rule_id === findingRuleFilter) &&
+          (!findingCatFilter || f.rule_cat === findingCatFilter),
+      );
+      if (match) result.add(path);
+    });
+    return result;
+  }, [findingsBySkill, findingRuleFilter, findingCatFilter]);
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return browseSkills.filter((r) => {
@@ -73,9 +106,11 @@ export function BrowseSection({ data, authorFilter }) {
         return false;
       if (catFilter && r.category !== catFilter) return false;
       if (riskFilter && r.level !== riskFilter) return false;
+      if (findingFilteredPaths && !findingFilteredPaths.has(r.skill_path))
+        return false;
       return true;
     });
-  }, [browseSkills, query, catFilter, riskFilter]);
+  }, [browseSkills, query, catFilter, riskFilter, findingFilteredPaths]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -127,12 +162,15 @@ export function BrowseSection({ data, authorFilter }) {
     setQuery("");
     setCatFilter("");
     setRiskFilter("");
+    setFindingRuleFilter("");
+    setFindingCatFilter("");
     setPage(0);
   }
 
   const COLS = [
     { key: "skill_path", label: "Skill", right: false },
     { key: "skill_author", label: "Author", right: false },
+    { key: "skill_version", label: "Version", right: false },
     { key: "category", label: "Category", right: false },
     { key: "level", label: "Risk", right: false },
     { key: "findings", label: "Findings", right: true },
@@ -194,7 +232,41 @@ export function BrowseSection({ data, authorFilter }) {
             ),
           )}
         </select>
-        {(query || catFilter || riskFilter) && (
+        <select
+          value={findingCatFilter}
+          onChange={(e) => {
+            setFindingCatFilter(e.target.value);
+            setPage(0);
+          }}
+          className="border border-[#9e9e9e] bg-[#fbf7eb] px-2 py-1 text-[12px] font-mono outline-none focus:border-[#393939]"
+        >
+          <option value="">All threat types</option>
+          {findingCatList.map((c) => (
+            <option key={c} value={c}>
+              {c.replace(/_/g, " ")}
+            </option>
+          ))}
+        </select>
+        <select
+          value={findingRuleFilter}
+          onChange={(e) => {
+            setFindingRuleFilter(e.target.value);
+            setPage(0);
+          }}
+          className="border border-[#9e9e9e] bg-[#fbf7eb] px-2 py-1 text-[12px] font-mono outline-none focus:border-[#393939]"
+        >
+          <option value="">All rule IDs</option>
+          {ruleList.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+        {(query ||
+          catFilter ||
+          riskFilter ||
+          findingRuleFilter ||
+          findingCatFilter) && (
           <button
             onClick={resetFilters}
             className="px-2 py-1 text-[11px] font-semibold border border-dashed border-[#393939] hover:bg-[#eee9d7]"
@@ -227,7 +299,7 @@ export function BrowseSection({ data, authorFilter }) {
           <tbody>
             {paged.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-8 text-center text-[#9e9e9e]">
+                <td colSpan={11} className="py-8 text-center text-[#9e9e9e]">
                   No skills match your filters.
                 </td>
               </tr>
@@ -265,15 +337,36 @@ export function BrowseSection({ data, authorFilter }) {
                   </span>
                 </td>
 
-                {/* Author — click to filter */}
+                {/* Author — click to filter + GitHub link */}
                 <td className="py-1.5 pr-3 w-[14%]">
-                  <button
-                    onClick={() => filterByAuthor(row.skill_author)}
-                    className="font-mono text-[11px] text-[#474747] hover:text-[#3b6fd4] hover:underline text-left truncate block max-w-[110px]"
-                    title={`Filter by ${row.skill_author}`}
-                  >
-                    {row.skill_author}
-                  </button>
+                  <div className="flex items-center gap-1 group">
+                    <button
+                      onClick={() => filterByAuthor(row.skill_author)}
+                      className="font-mono text-[11px] text-[#474747] hover:text-[#3b6fd4] hover:underline text-left truncate max-w-[90px]"
+                      title={`Filter by ${row.skill_author}`}
+                    >
+                      {row.skill_author}
+                    </button>
+                    <a
+                      href={`https://github.com/${row.skill_author}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#c0bbb0] hover:text-[#141414] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      title={`GitHub: ${row.skill_author}`}
+                    >
+                      <Github size={11} strokeWidth={1.8} />
+                    </a>
+                  </div>
+                </td>
+
+                {/* Version */}
+                <td
+                  className="py-1.5 pr-3 font-mono text-[#6b6b6b] max-w-[80px] truncate"
+                  title={row.skill_version || ""}
+                >
+                  {row.skill_version || (
+                    <span className="text-[#c0bbb0]">—</span>
+                  )}
                 </td>
 
                 {/* Category */}
