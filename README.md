@@ -4,6 +4,19 @@ A catalog builder and analytics dashboard for the [OpenClaw](https://github.com/
 
 ---
 
+## Screenshots
+
+### Overview — KPI metrics, growth timeline & category breakdown
+![Overview tab showing KPI strip, skill growth over time, and category distribution](assets/overview.png)
+
+### Security — risk distribution, findings by severity & riskiest skills
+![Security tab showing risk level chart, findings breakdown, and riskiest skills table](assets/security.png)
+
+### Browse — searchable, filterable, paginated skill catalog
+![Browse tab with searchable sortable table of all skills and per-skill findings modal](assets/browse.png)
+
+---
+
 ## What it does
 
 The OpenClaw skills repository contains hundreds of community-contributed agent skills, each living in its own folder with a `SKILL.md` file. This project gives you two things:
