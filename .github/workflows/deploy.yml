@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Update skills catalog"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -17,6 +21,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     defaults:
       run:
         working-directory: skills-dashboard
