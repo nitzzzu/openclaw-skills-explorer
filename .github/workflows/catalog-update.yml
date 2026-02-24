@@ -1,0 +1,76 @@
+name: Update skills catalog
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:          # allow manual trigger from Actions tab
+    inputs:
+      full_rescan:
+        description: "Force full rescan (ignore last commit checkpoint)"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "skills_catalog.py"
+      - "blacklist.yaml"
+
+permissions:
+  contents: write             # needed to commit the updated DB + parquets back
+
+jobs:
+  update-catalog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout openclaw-skills (this repo, with skills_catalog.duckdb)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone openclaw/skills (the skills source repo)
+        uses: actions/checkout@v4
+        with:
+          repository: openclaw/skills
+          # openclaw/skills is public — no token needed.
+          # If it becomes private, add: token: ${{ secrets.SKILLS_REPO_PAT }}
+          path: skills-repo
+          fetch-depth: 0      # IMPORTANT: duck_tails reads full git history for
+                              # incremental sync — a shallow clone breaks it
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install Python dependencies
+        run: uv sync
+
+      - name: Run skills_catalog.py (incremental)
+        run: |
+          EXTRA=""
+          if [ "${{ inputs.full_rescan }}" = "true" ]; then
+            EXTRA="--full-rescan"
+          fi
+          uv run skills_catalog.py \
+            --repo-path  "${{ github.workspace }}/skills-repo" \
+            --db         "${{ github.workspace }}/skills_catalog.duckdb" \
+            --blacklist  "${{ github.workspace }}/blacklist.yaml" \
+            --export-dir "${{ github.workspace }}/skills-dashboard/public" \
+            $EXTRA
+
+      - name: Commit updated catalog + parquet files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add skills_catalog.duckdb \
+                  skills-dashboard/public/skills.parquet \
+                  skills-dashboard/public/findings.parquet
+          # Only commit if something actually changed
+          git diff --cached --quiet || \
+            git commit -m "chore(catalog): automated update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push

@@ -1,0 +1,19 @@
+# Skills Catalog Blacklist Configuration
+# Add entries to block skills from appearing in the active catalog.
+# Blacklisted skills are kept in the DB but flagged with is_blacklisted=True.
+
+# Block all skills from these authors (case-insensitive exact match on folder name)
+authors: []
+  # - spammy-author
+  # - bad-actor-123
+
+# Block all skills that fall into these categories (case-insensitive match)
+categories: []
+  # - Gaming
+  # - Sports & Betting
+
+# Block skills whose name OR description contains any of these keywords (case-insensitive substring match)
+keywords: []
+  # - malware
+  # - phishing
+  # - steal credentials

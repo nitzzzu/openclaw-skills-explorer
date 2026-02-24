@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #fbf7eb;
+  --color-foreground: #141414;
+  --color-border: #9e9e9e;
+  --color-separator: #393939;
+  --color-muted: #6b6b6b;
+  --color-muted2: #474747;
+  --color-positive: #2f7d31;
+  --color-negative: #c6392c;
+  --color-warning: #b45309;
+  --color-link: #3b6fd4;
+
+  --color-chart-1: #d2836e;
+  --color-chart-2: #4a9a8a;
+  --color-chart-3: #4a5568;
+  --color-chart-4: #d4a843;
+  --color-chart-5: #7b68ee;
+
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background-color: #fbf7eb;
+  color: #141414;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #fbf7eb; }
+::-webkit-scrollbar-thumb { background: #9e9e9e; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #393939; }
