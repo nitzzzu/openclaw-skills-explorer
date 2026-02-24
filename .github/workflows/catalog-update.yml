@@ -73,6 +73,7 @@ jobs:
           # Only commit if something actually changed
           git diff --cached --quiet || \
             git commit -m "chore(catalog): automated update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          # Pull any concurrent pushes before pushing (working tree is clean now)
-          git pull --rebase origin main
+          # Pull any concurrent pushes before pushing; --autostash handles any
+          # unstaged noise (e.g. the skills-repo sub-checkout) automatically
+          git pull --rebase --autostash origin main
           git push
