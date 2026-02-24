@@ -2,7 +2,7 @@ name: Update skills catalog
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # every 6 hours
+    - cron: "0 */2 * * *" # every 2 hours
   workflow_dispatch: # allow manual trigger from Actions tab
     inputs:
       full_rescan:
