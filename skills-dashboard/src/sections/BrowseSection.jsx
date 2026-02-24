@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SectionTitle } from "../components/SectionTitle";
 import { RiskBadge } from "../components/RiskBadge";
 import { FindingsModal } from "../components/FindingsModal";
@@ -34,10 +34,10 @@ function SortIcon({ col, sortKey, sortDir }) {
   return <span className="ml-0.5">{sortDir === "asc" ? "↑" : "↓"}</span>;
 }
 
-export function BrowseSection({ data }) {
+export function BrowseSection({ data, authorFilter }) {
   const { browseSkills, findingsBySkill } = data;
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(authorFilter || "");
   const [catFilter, setCatFilter] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
   const [sortKey, setSortKey] = useState("date_added");
@@ -45,6 +45,13 @@ export function BrowseSection({ data }) {
   const [page, setPage] = useState(0);
   const [modal, setModal] = useState(null);
   const [descModal, setDescModal] = useState(null);
+
+  useEffect(() => {
+    if (authorFilter !== undefined) {
+      setQuery(authorFilter);
+      setPage(0);
+    }
+  }, [authorFilter]);
 
   const catList = useMemo(() => {
     const s = new Set(browseSkills.map((r) => r.category).filter(Boolean));

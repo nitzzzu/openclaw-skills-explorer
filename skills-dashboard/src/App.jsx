@@ -37,19 +37,34 @@ function ErrorScreen({ message }) {
 export default function App() {
   const { data, loading, error, progress } = useSkillsData();
   const [tab, setTab] = useState("overview");
+  const [authorFilter, setAuthorFilter] = useState("");
 
   if (loading) return <LoadingScreen progress={progress} />;
   if (error) return <ErrorScreen message={error} />;
   if (!data) return null;
 
+  function handleAuthorClick(author) {
+    setAuthorFilter(author);
+    setTab("browse");
+  }
+
+  function handleTabChange(t) {
+    if (t !== "browse") setAuthorFilter("");
+    setTab(t);
+  }
+
   return (
     <div className="min-h-screen bg-[#fbf7eb]">
-      <Header activeTab={tab} onTab={setTab} />
+      <Header activeTab={tab} onTab={handleTabChange} />
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === "overview" && <OverviewSection data={data} />}
         {tab === "security" && <SecuritySection data={data} />}
-        {tab === "authors" && <AuthorsSection data={data} />}
-        {tab === "browse" && <BrowseSection data={data} />}
+        {tab === "authors" && (
+          <AuthorsSection data={data} onAuthorClick={handleAuthorClick} />
+        )}
+        {tab === "browse" && (
+          <BrowseSection data={data} authorFilter={authorFilter} />
+        )}
       </main>
       <footer className="border-t border-dashed border-[#393939] mt-8 py-3 text-center text-[10px] text-[#9e9e9e]">
         ClawEye · {data.stats.total_active?.toLocaleString()} skills

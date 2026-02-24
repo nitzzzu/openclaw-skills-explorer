@@ -9,6 +9,7 @@ import {
   Cell,
 } from "recharts";
 import { SectionTitle } from "../components/SectionTitle";
+import { Github } from "lucide-react";
 
 const PALETTE = [
   "#d2836e",
@@ -38,7 +39,7 @@ const PALETTE = [
   "#7b68ee",
 ];
 
-export function AuthorsSection({ data }) {
+export function AuthorsSection({ data, onAuthorClick }) {
   const { authors } = data;
   const topAuthor = authors[0];
   const totalTopAuthors = authors.slice(0, 10).reduce((a, r) => a + r.cnt, 0);
@@ -51,7 +52,11 @@ export function AuthorsSection({ data }) {
         </SectionTitle>
 
         <div className="flex flex-wrap gap-4 mb-6">
-          <div className="border border-dashed border-[#393939] px-4 py-2">
+          <div
+            className="border border-dashed border-[#393939] px-4 py-2 cursor-pointer hover:bg-[#f5f0e0]"
+            onClick={() => onAuthorClick?.(topAuthor?.author)}
+            title={`Browse skills by ${topAuthor?.author}`}
+          >
             <div className="text-[10px] text-[#6b6b6b] uppercase">
               Top Author
             </div>
@@ -78,6 +83,11 @@ export function AuthorsSection({ data }) {
             data={authors}
             layout="vertical"
             margin={{ top: 4, right: 60, bottom: 4, left: 130 }}
+            onClick={(e) => {
+              if (e?.activePayload?.[0]?.payload?.author && onAuthorClick) {
+                onAuthorClick(e.activePayload[0].payload.author);
+              }
+            }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -106,7 +116,7 @@ export function AuthorsSection({ data }) {
                 p.payload.author,
               ]}
             />
-            <Bar dataKey="cnt" radius={[0, 2, 2, 0]}>
+            <Bar dataKey="cnt" radius={[0, 2, 2, 0]} cursor="pointer">
               {authors.map((_, i) => (
                 <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
               ))}
@@ -124,15 +134,27 @@ export function AuthorsSection({ data }) {
           {authors.slice(0, 20).map((a, i) => (
             <div
               key={a.author}
-              className="flex items-center justify-between border-b border-dashed border-[#e4e0d6] py-1.5"
+              className="flex items-center justify-between border-b border-dashed border-[#e4e0d6] py-1.5 cursor-pointer group"
+              onClick={() => onAuthorClick?.(a.author)}
+              title={`Browse skills by ${a.author}`}
             >
               <div className="flex items-center gap-3">
                 <span className="text-[11px] text-[#9e9e9e] w-6 tabular-nums">
                   {i + 1}
                 </span>
-                <span className="text-[12px] font-mono text-[#3b6fd4]">
+                <span className="text-[12px] font-mono text-[#3b6fd4] group-hover:underline">
                   {a.author}
                 </span>
+                <a
+                  href={`https://github.com/${a.author}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[#9e9e9e] hover:text-[#141414] opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={`GitHub: ${a.author}`}
+                >
+                  <Github size={12} />
+                </a>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-1.5 bg-[#e4e0d6] rounded-sm overflow-hidden w-16">

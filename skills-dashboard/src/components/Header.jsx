@@ -1,9 +1,9 @@
 export function Header({ activeTab, onTab }) {
   const tabs = [
     { id: "overview", label: "Overview" },
+    { id: "browse", label: "Browse" },
     { id: "security", label: "Security" },
     { id: "authors", label: "Authors" },
-    { id: "browse", label: "Browse" },
   ];
 
   return (
