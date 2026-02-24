@@ -24,12 +24,12 @@ export function useSkillsData() {
 
         setProgress("Fetching skills data...");
         const [skillsBuf, findingsBuf] = await Promise.all([
-          fetch(`${import.meta.env.BASE_URL}skills.parquet`).then((r) =>
-            r.arrayBuffer(),
-          ),
-          fetch(`${import.meta.env.BASE_URL}findings.parquet`).then((r) =>
-            r.arrayBuffer(),
-          ),
+          fetch(`${import.meta.env.BASE_URL}skills.parquet`, {
+            cache: "no-cache",
+          }).then((r) => r.arrayBuffer()),
+          fetch(`${import.meta.env.BASE_URL}findings.parquet`, {
+            cache: "no-cache",
+          }).then((r) => r.arrayBuffer()),
         ]);
 
         if (cancelled) return;
