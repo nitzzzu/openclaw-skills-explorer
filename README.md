@@ -1,4 +1,4 @@
-# openclaw-skills-explorer
+# ClawEye
 
 A catalog builder and analytics dashboard for the [OpenClaw](https://github.com/openclaw/skills) agentic skills registry.
 
@@ -23,7 +23,7 @@ The OpenClaw skills repository contains hundreds of community-contributed agent 
 
 **`skills_catalog.py`** — a Python CLI that walks the git history of that repository, extracts metadata from every skill, runs a static security scan against each one, categorizes it, and stores everything in a local DuckDB file. On subsequent runs it only processes skills that changed since the last commit, so repeat syncs are fast. The final step exports two Parquet files that the dashboard can consume.
 
-**`skills-dashboard/`** — a React application that loads those Parquet files directly in the browser using DuckDB WASM. There is no backend. Open the page, the files load, DuckDB runs a handful of analytical queries client-side, and you get a full picture of the registry: growth over time, category distribution, security risk breakdown, and a searchable/filterable table of every skill.
+**`skills-dashboard/`** — the application that loads those Parquet files directly in the browser using DuckDB WASM. There is no backend. Open the page, the files load, DuckDB runs a handful of analytical queries client-side, and you get a full picture of the registry: growth over time, category distribution, security risk breakdown, and a searchable/filterable table of every skill.
 
 ---
 

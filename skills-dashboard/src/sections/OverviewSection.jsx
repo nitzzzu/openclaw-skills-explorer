@@ -52,7 +52,7 @@ export function OverviewSection({ data }) {
     <div className="space-y-8">
       {/* KPI Strip */}
       <div>
-        <SectionTitle sub="Snapshot of the OpenClaw agentic skills registry">
+        <SectionTitle sub="Snapshot of the ClawEye agentic skills registry">
           Catalog Overview
         </SectionTitle>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">

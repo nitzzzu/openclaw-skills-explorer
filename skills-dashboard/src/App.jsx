@@ -14,7 +14,7 @@ function LoadingScreen({ progress }) {
         <div className="text-sm font-semibold mb-1">Loading Skills Catalog</div>
         <div className="text-[11px] text-[#6b6b6b]">{progress}</div>
       </div>
-      <div className="text-[10px] text-[#9e9e9e]">Powered by DuckDB WASM</div>
+      <div className="text-[10px] text-[#9e9e9e]">Powered by OpenClaw Hub</div>
     </div>
   );
 }
@@ -52,8 +52,7 @@ export default function App() {
         {tab === "browse" && <BrowseSection data={data} />}
       </main>
       <footer className="border-t border-dashed border-[#393939] mt-8 py-3 text-center text-[10px] text-[#9e9e9e]">
-        OpenClaw Skills Explorer · {data.stats.total_active?.toLocaleString()}{" "}
-        skills
+        ClawEye · {data.stats.total_active?.toLocaleString()} skills
       </footer>
     </div>
   );

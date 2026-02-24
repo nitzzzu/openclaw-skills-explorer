@@ -15,7 +15,7 @@ export function Header({ activeTab, onTab }) {
             <div className="w-2 h-2 bg-[#141414]" />
           </div>
           <span className="font-bold text-sm tracking-tight text-[#141414]">
-            OpenClaw Skills Explorer
+            ClawEye
           </span>
           <span className="hidden sm:inline text-[10px] text-[#9e9e9e] border border-[#e4e0d6] px-1.5 py-0.5 rounded-sm">
             Agentic Catalog
