@@ -9,6 +9,7 @@ import {
   Cell,
 } from "recharts";
 import { SectionTitle } from "../components/SectionTitle";
+import { AuthorSignalWide } from "../components/AuthorSignal";
 import { Github } from "lucide-react";
 import { useWindowWidth } from "../hooks/useWindowWidth";
 
@@ -44,7 +45,7 @@ export function AuthorsSection({ data, onAuthorClick }) {
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 640;
 
-  const { authors } = data;
+  const { authors, authorProfiles = {} } = data;
   const topAuthor = authors[0];
   const totalTopAuthors = authors.slice(0, 10).reduce((a, r) => a + r.cnt, 0);
 
@@ -64,9 +65,19 @@ export function AuthorsSection({ data, onAuthorClick }) {
             <div className="text-[10px] text-[#6b6b6b] uppercase">
               Top Author
             </div>
-            <div className="text-xl font-bold">{topAuthor?.author}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold">{topAuthor?.author}</span>
+              <AuthorSignalWide
+                profile={authorProfiles[topAuthor?.author]}
+              />
+            </div>
             <div className="text-[11px] text-[#9e9e9e]">
               {topAuthor?.cnt.toLocaleString()} skills
+              {authorProfiles[topAuthor?.author] && (
+                <span className="ml-1">
+                  · {authorProfiles[topAuthor.author].name || ""}
+                </span>
+              )}
             </div>
           </div>
           <div className="border border-dashed border-[#393939] px-4 py-2">
@@ -167,6 +178,7 @@ export function AuthorsSection({ data, onAuthorClick }) {
                 >
                   <Github size={12} />
                 </a>
+                <AuthorSignalWide profile={authorProfiles[a.author]} />
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-1.5 bg-[#e4e0d6] rounded-sm overflow-hidden w-16">

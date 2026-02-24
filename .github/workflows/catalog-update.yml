@@ -63,6 +63,21 @@ jobs:
             --export-dir "${{ github.workspace }}/skills-dashboard/public" \
             $EXTRA
 
+      - name: Enrich author profiles from GitHub API
+        if: env.HAS_GITHUB_TOKEN == 'true'
+        run: |
+          uv run skills_catalog.py \
+            --repo-path  "${{ github.workspace }}/skills-repo" \
+            --db         "${{ github.workspace }}/skills_catalog.duckdb" \
+            --blacklist  "${{ github.workspace }}/blacklist.yaml" \
+            --export-dir "${{ github.workspace }}/skills-dashboard/public" \
+            --no-scan \
+            --enrich-authors \
+            --github-token "${{ secrets.GH_AUTHORS_PAT }}" \
+            --author-batch-size 500
+        env:
+          HAS_GITHUB_TOKEN: ${{ secrets.GH_AUTHORS_PAT != '' }}
+
       - name: Commit updated catalog + parquet files
         run: |
           git config user.name  "github-actions[bot]"
@@ -70,6 +85,9 @@ jobs:
           git add skills_catalog.duckdb \
                   skills-dashboard/public/skills.parquet \
                   skills-dashboard/public/findings.parquet
+          # authors.parquet only exists when enrichment ran
+          [ -f skills-dashboard/public/authors.parquet ] && \
+            git add skills-dashboard/public/authors.parquet || true
           # Only commit if something actually changed
           git diff --cached --quiet || \
             git commit -m "chore(catalog): automated update $(date -u +%Y-%m-%dT%H:%M:%SZ)"

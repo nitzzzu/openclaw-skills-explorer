@@ -23,13 +23,18 @@ export function useSkillsData() {
         const db = await initializeDuckDb({ debug: false });
 
         setProgress("Fetching skills data...");
-        const [skillsBuf, findingsBuf] = await Promise.all([
+        const [skillsBuf, findingsBuf, authorsBuf] = await Promise.all([
           fetch(`${import.meta.env.BASE_URL}skills.parquet`, {
             cache: "no-cache",
           }).then((r) => r.arrayBuffer()),
           fetch(`${import.meta.env.BASE_URL}findings.parquet`, {
             cache: "no-cache",
           }).then((r) => r.arrayBuffer()),
+          fetch(`${import.meta.env.BASE_URL}authors.parquet`, {
+            cache: "no-cache",
+          })
+            .then((r) => (r.ok ? r.arrayBuffer() : null))
+            .catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -40,6 +45,28 @@ export function useSkillsData() {
 
         const findingsFile = new File([findingsBuf], "findings.parquet");
         await insertParquet(db, findingsFile, "findings");
+
+        let authorProfiles = {};
+        if (authorsBuf) {
+          const authorsFile = new File([authorsBuf], "authors.parquet");
+          await insertParquet(db, authorsFile, "author_profiles");
+          const rows = await q(
+            db,
+            `SELECT username, avatar_url, name, company, bio, location,
+                    public_repos, followers, following, created_at,
+                    account_type, skill_count, twitter_username
+             FROM author_profiles`,
+          );
+          rows.forEach((r) => {
+            authorProfiles[r.username] = {
+              ...r,
+              public_repos: Number(r.public_repos ?? 0),
+              followers: Number(r.followers ?? 0),
+              following: Number(r.following ?? 0),
+              skill_count: Number(r.skill_count ?? 0),
+            };
+          });
+        }
 
         if (cancelled) return;
         setProgress("Running analytics...");
@@ -174,6 +201,7 @@ export function useSkillsData() {
 
         setData({
           stats,
+          authorProfiles,
           monthly: monthly.map((r) => ({
             month: r.day,
             added: Number(r.added),

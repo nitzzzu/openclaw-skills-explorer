@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { SectionTitle } from "../components/SectionTitle";
 import { RiskBadge } from "../components/RiskBadge";
 import { FindingsModal } from "../components/FindingsModal";
+import { AuthorSignal } from "../components/AuthorSignal";
 import { Info, Github } from "lucide-react";
 
 const PER_PAGE = 50;
@@ -35,7 +36,7 @@ function SortIcon({ col, sortKey, sortDir }) {
 }
 
 export function BrowseSection({ data, authorFilter }) {
-  const { browseSkills, findingsBySkill } = data;
+  const { browseSkills, findingsBySkill, authorProfiles = {} } = data;
 
   const [query, setQuery] = useState(authorFilter || "");
   const [catFilter, setCatFilter] = useState("");
@@ -342,8 +343,8 @@ export function BrowseSection({ data, authorFilter }) {
                   </span>
                 </td>
 
-                {/* Author — click to filter + GitHub link */}
-                <td className="py-1.5 pr-3 w-[14%]">
+                {/* Author — click to filter + GitHub link + enrichment signals */}
+                <td className="py-1.5 pr-3 w-[18%]">
                   <div className="flex items-center gap-1 group">
                     <button
                       onClick={() => filterByAuthor(row.skill_author)}
@@ -352,6 +353,9 @@ export function BrowseSection({ data, authorFilter }) {
                     >
                       {row.skill_author}
                     </button>
+                    <AuthorSignal
+                      profile={authorProfiles[row.skill_author]}
+                    />
                     <a
                       href={`https://github.com/${row.skill_author}`}
                       target="_blank"

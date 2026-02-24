@@ -13,9 +13,12 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import sys
 import time
+import urllib.request
+import urllib.error
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -941,6 +944,28 @@ CREATE TABLE IF NOT EXISTS scan_findings (
     recommendation  VARCHAR,
     scanned_at      TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS authors (
+    username          VARCHAR PRIMARY KEY,  -- GitHub login (= skill_author)
+    github_id         BIGINT,
+    avatar_url        VARCHAR,
+    name              VARCHAR,
+    company           VARCHAR,
+    blog              VARCHAR,
+    location          VARCHAR,
+    bio               VARCHAR,
+    twitter_username  VARCHAR,
+    public_repos      INTEGER,
+    public_gists      INTEGER,
+    followers         INTEGER,
+    following         INTEGER,
+    created_at        TIMESTAMP,
+    updated_at        TIMESTAMP,           -- GitHub's updated_at
+    fetched_at        TIMESTAMP,           -- when we fetched this
+    http_status       INTEGER,             -- 200, 404, 403, etc.
+    account_type      VARCHAR,             -- 'User', 'Organization', 'Bot'
+    skill_count       INTEGER DEFAULT 0    -- denormalized for convenience
+);
 """
 
 
@@ -1333,9 +1358,158 @@ def print_stats(con: duckdb.DuckDBPyConnection):
 # Main Entry
 # ---------------------------------------------------------------------------
 
+def enrich_authors(con: duckdb.DuckDBPyConnection, github_token=None, batch_size=500):
+    """Enrich author profiles from the GitHub REST API.
+
+    Only authors with 2+ active skills who haven't been fetched yet are queried.
+    Results (including errors like 404) are cached so they won't be re-fetched.
+    """
+    print("\n" + "=" * 60)
+    print("  AUTHOR ENRICHMENT")
+    print("=" * 60)
+
+    # Update skill_count for all known authors first
+    con.execute("""
+        INSERT INTO authors (username, skill_count)
+            SELECT skill_author, COUNT(*) AS cnt
+            FROM skills
+            WHERE NOT is_deleted AND NOT is_blacklisted
+            GROUP BY skill_author
+            HAVING cnt >= 2
+        ON CONFLICT (username) DO UPDATE SET skill_count = EXCLUDED.skill_count
+    """)
+
+    # Find authors needing enrichment (never fetched)
+    rows = con.execute("""
+        SELECT a.username
+        FROM authors a
+        WHERE a.fetched_at IS NULL
+        ORDER BY a.skill_count DESC
+        LIMIT ?
+    """, [batch_size]).fetchall()
+
+    to_fetch = [r[0] for r in rows]
+    total = len(to_fetch)
+    print(f"  Authors with 2+ skills needing enrichment: {total}")
+
+    if total == 0:
+        print("  Nothing to enrich.")
+        return
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "openclaw-skills-catalog",
+    }
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+
+    fetched = 0
+    errors = 0
+
+    for i, username in enumerate(to_fetch, 1):
+        url = f"https://api.github.com/users/{urllib.request.quote(username, safe='')}"
+        req = urllib.request.Request(url, headers=headers)
+
+        http_status = None
+        data = {}
+
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                http_status = resp.status
+                data = json.loads(resp.read().decode())
+
+                # Check rate limit
+                remaining = resp.headers.get("X-RateLimit-Remaining")
+                if remaining is not None and int(remaining) < 100:
+                    print(f"  Rate limit low ({remaining} remaining) — stopping early.")
+                    _upsert_author(con, username, http_status, data)
+                    fetched += 1
+                    break
+
+        except urllib.error.HTTPError as e:
+            http_status = e.code
+            try:
+                data = json.loads(e.read().decode())
+            except Exception:
+                data = {}
+            if http_status in (403, 429):
+                print(f"  Rate limited (HTTP {http_status}) — stopping early.")
+                break
+        except Exception as e:
+            print(f"  Error fetching {username}: {e}")
+            http_status = 0
+            errors += 1
+
+        _upsert_author(con, username, http_status, data)
+        fetched += 1
+
+        if i % 50 == 0 or i == total:
+            print(f"  [{i}/{total}] fetched (last: {username})")
+
+        time.sleep(0.8)
+
+    print(f"\n  Enrichment complete: {fetched} fetched, {errors} errors")
+
+
+def _upsert_author(con, username, http_status, data):
+    """Insert or update an author row from GitHub API response data."""
+    now = datetime.now(timezone.utc).isoformat()
+
+    def _ts(val):
+        """Parse GitHub ISO timestamp or return None."""
+        if not val:
+            return None
+        return val.replace("Z", "+00:00")
+
+    con.execute("""
+        INSERT INTO authors (
+            username, github_id, avatar_url, name, company, blog,
+            location, bio, twitter_username, public_repos, public_gists,
+            followers, following, created_at, updated_at,
+            fetched_at, http_status, account_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::TIMESTAMP, ?::TIMESTAMP, ?::TIMESTAMP, ?, ?)
+        ON CONFLICT (username) DO UPDATE SET
+            github_id        = EXCLUDED.github_id,
+            avatar_url       = EXCLUDED.avatar_url,
+            name             = EXCLUDED.name,
+            company          = EXCLUDED.company,
+            blog             = EXCLUDED.blog,
+            location         = EXCLUDED.location,
+            bio              = EXCLUDED.bio,
+            twitter_username = EXCLUDED.twitter_username,
+            public_repos     = EXCLUDED.public_repos,
+            public_gists     = EXCLUDED.public_gists,
+            followers        = EXCLUDED.followers,
+            following        = EXCLUDED.following,
+            created_at       = EXCLUDED.created_at,
+            updated_at       = EXCLUDED.updated_at,
+            fetched_at       = EXCLUDED.fetched_at,
+            http_status      = EXCLUDED.http_status,
+            account_type     = EXCLUDED.account_type
+    """, [
+        username,
+        data.get("id"),
+        data.get("avatar_url"),
+        data.get("name"),
+        data.get("company"),
+        data.get("blog"),
+        data.get("location"),
+        data.get("bio"),
+        data.get("twitter_username"),
+        data.get("public_repos"),
+        data.get("public_gists"),
+        data.get("followers"),
+        data.get("following"),
+        _ts(data.get("created_at")),
+        _ts(data.get("updated_at")),
+        now,
+        http_status,
+        data.get("type"),
+    ])
+
+
 def export_parquet(con: duckdb.DuckDBPyConnection, out_dir: str):
     """Export skills and findings tables to Parquet files for the dashboard UI."""
-    import os
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -1395,6 +1569,22 @@ def export_parquet(con: duckdb.DuckDBPyConnection, out_dir: str):
     size_kb = os.path.getsize(findings_path) // 1024
     print(f"  findings.parquet: {size_kb} KB")
 
+    # Authors parquet (only if the table has data)
+    author_count = con.execute(
+        "SELECT COUNT(*) FROM authors WHERE http_status = 200"
+    ).fetchone()[0]
+    if author_count > 0:
+        authors_path = out / "authors.parquet"
+        con.execute(f"""
+            COPY (
+                SELECT * FROM authors
+                WHERE http_status = 200
+                ORDER BY followers DESC
+            ) TO '{authors_path}' (FORMAT PARQUET, COMPRESSION ZSTD)
+        """)
+        size_kb = os.path.getsize(authors_path) // 1024
+        print(f"  authors.parquet : {size_kb} KB ({author_count} authors)")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1439,6 +1629,22 @@ Examples:
         "--export-dir",
         default="/workspaces/openclaw-skills/skills-dashboard/public",
         help="Directory to write skills.parquet and findings.parquet for the dashboard UI (set to '' to skip)",
+    )
+    parser.add_argument(
+        "--enrich-authors",
+        action="store_true",
+        help="Enable GitHub author enrichment (default: off unless token provided)",
+    )
+    parser.add_argument(
+        "--github-token",
+        default=os.environ.get("GITHUB_TOKEN", ""),
+        help="GitHub PAT for API auth (or env: GITHUB_TOKEN)",
+    )
+    parser.add_argument(
+        "--author-batch-size",
+        type=int,
+        default=500,
+        help="Max authors to enrich per run (default: 500)",
     )
     args = parser.parse_args()
 
@@ -1491,6 +1697,13 @@ Examples:
     if len(new_commits) == 0 and not args.full_rescan:
         print("\nNothing new to process.")
         print_stats(con)
+        should_enrich = args.enrich_authors or bool(args.github_token)
+        if should_enrich:
+            enrich_authors(
+                con,
+                github_token=args.github_token or None,
+                batch_size=args.author_batch_size,
+            )
         if args.export_dir:
             export_parquet(con, args.export_dir)
         con.close()
@@ -1593,6 +1806,15 @@ Examples:
         print(f"  Errors:  {error_count}")
 
     print_stats(con)
+
+    # Author enrichment — runs if flag set or token provided
+    should_enrich = args.enrich_authors or bool(args.github_token)
+    if should_enrich:
+        enrich_authors(
+            con,
+            github_token=args.github_token or None,
+            batch_size=args.author_batch_size,
+        )
 
     if args.export_dir:
         export_parquet(con, args.export_dir)
