@@ -2,8 +2,8 @@ name: Update skills catalog
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # every 6 hours
-  workflow_dispatch:          # allow manual trigger from Actions tab
+    - cron: "0 */6 * * *" # every 6 hours
+  workflow_dispatch: # allow manual trigger from Actions tab
     inputs:
       full_rescan:
         description: "Force full rescan (ignore last commit checkpoint)"
@@ -16,7 +16,7 @@ on:
       - "blacklist.yaml"
 
 permissions:
-  contents: write             # needed to commit the updated DB + parquets back
+  contents: write # needed to commit the updated DB + parquets back
 
 jobs:
   update-catalog:
@@ -35,8 +35,9 @@ jobs:
           # openclaw/skills is public — no token needed.
           # If it becomes private, add: token: ${{ secrets.SKILLS_REPO_PAT }}
           path: skills-repo
-          fetch-depth: 0      # IMPORTANT: duck_tails reads full git history for
-                              # incremental sync — a shallow clone breaks it
+          fetch-depth:
+            0 # IMPORTANT: duck_tails reads full git history for
+            # incremental sync — a shallow clone breaks it
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -66,11 +67,12 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
           git add skills_catalog.duckdb \
                   skills-dashboard/public/skills.parquet \
                   skills-dashboard/public/findings.parquet
           # Only commit if something actually changed
           git diff --cached --quiet || \
             git commit -m "chore(catalog): automated update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # Pull any concurrent pushes before pushing (working tree is clean now)
+          git pull --rebase origin main
           git push
