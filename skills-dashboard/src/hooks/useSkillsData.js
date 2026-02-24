@@ -19,10 +19,10 @@ export function useSkillsData() {
 
     async function load() {
       try {
-        setProgress("Starting DuckDB WASM...");
+        setProgress("Initializing...");
         const db = await initializeDuckDb({ debug: false });
 
-        setProgress("Fetching skills data (1.3 MB)...");
+        setProgress("Fetching skills data...");
         const [skillsBuf, findingsBuf] = await Promise.all([
           fetch(`${import.meta.env.BASE_URL}skills.parquet`).then((r) =>
             r.arrayBuffer(),
@@ -34,7 +34,7 @@ export function useSkillsData() {
 
         if (cancelled) return;
 
-        setProgress("Loading skills into DuckDB...");
+        setProgress("Loading skills...");
         const skillsFile = new File([skillsBuf], "skills.parquet");
         await insertParquet(db, skillsFile, "skills");
 

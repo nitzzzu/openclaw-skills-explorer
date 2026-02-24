@@ -212,27 +212,32 @@ export function BrowseSection({ data }) {
                 className={`border-b border-[#e4e0d6] hover:bg-[#f4f0e4] transition-colors ${i % 2 === 1 ? "bg-[#f9f5ee]" : ""}`}
               >
                 {/* Skill path + description */}
-                 <td className="py-1.5 pr-3 w-[28%]">
-                   <span className="inline-flex items-center gap-1">
-                     <a
-                       href={`${GH_BASE}${row.skill_path}`}
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       className="font-mono text-[#3b6fd4] hover:underline break-all leading-tight"
-                     >
-                       {row.skill_path.split("/").pop()}
-                     </a>
-                     {row.skill_description && (
-                       <button
-                         onClick={() => setDescModal({ name: row.skill_path.split("/").pop(), text: row.skill_description })}
-                         className="text-[#c0bbb0] hover:text-[#3b6fd4] flex-shrink-0"
-                         title="Show description"
-                       >
-                         <Info size={11} strokeWidth={2} />
-                       </button>
-                     )}
-                   </span>
-                 </td>
+                <td className="py-1.5 pr-3 w-[28%]">
+                  <span className="inline-flex items-center gap-1">
+                    <a
+                      href={`${GH_BASE}${row.skill_path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[#3b6fd4] hover:underline break-all leading-tight"
+                    >
+                      {row.skill_path.split("/").pop()}
+                    </a>
+                    {row.skill_description && (
+                      <button
+                        onClick={() =>
+                          setDescModal({
+                            name: row.skill_path.split("/").pop(),
+                            text: row.skill_description,
+                          })
+                        }
+                        className="text-[#c0bbb0] hover:text-[#3b6fd4] flex-shrink-0"
+                        title="Show description"
+                      >
+                        <Info size={11} strokeWidth={2} />
+                      </button>
+                    )}
+                  </span>
+                </td>
 
                 {/* Author — click to filter */}
                 <td className="py-1.5 pr-3 w-[14%]">
@@ -325,17 +330,29 @@ export function BrowseSection({ data }) {
       )}
 
       {descModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setDescModal(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setDescModal(null)}
+        >
           <div className="absolute inset-0 bg-black/40" />
           <div
             className="relative bg-[#fbf7eb] border border-[#393939] p-5 max-w-lg w-full mx-4 shadow-lg"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-3">
-              <span className="font-mono font-semibold text-[13px] text-[#141414] break-all pr-4">{descModal.name}</span>
-              <button onClick={() => setDescModal(null)} className="text-[#9e9e9e] hover:text-[#141414] text-lg leading-none flex-shrink-0">×</button>
+              <span className="font-mono font-semibold text-[13px] text-[#141414] break-all pr-4">
+                {descModal.name}
+              </span>
+              <button
+                onClick={() => setDescModal(null)}
+                className="text-[#9e9e9e] hover:text-[#141414] text-lg leading-none flex-shrink-0"
+              >
+                ×
+              </button>
             </div>
-            <p className="text-[12px] text-[#474747] leading-relaxed">{descModal.text}</p>
+            <p className="text-[12px] text-[#474747] leading-relaxed">
+              {descModal.text}
+            </p>
           </div>
         </div>
       )}
