@@ -5,6 +5,7 @@ import { AuthorSignal } from "./AuthorSignal";
 import { Github } from "lucide-react";
 
 const GH_BASE = "https://github.com/openclaw/skills/tree/main/skills/";
+const PAGE_SIZE = 20;
 
 function fmt(s) {
   if (!s) return "—";
@@ -143,16 +144,20 @@ export function SkillCardCarousel({
   onAuthorFilter,
   onFindingsClick,
 }) {
+  const [carouselPage, setCarouselPage] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const totalPages = Math.ceil(skills.length / PAGE_SIZE);
+  const pageItems = skills.slice(carouselPage * PAGE_SIZE, (carouselPage + 1) * PAGE_SIZE);
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "center",
     loop: false,
     dragFree: false,
     watchDrag: true,
   });
-
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -172,16 +177,26 @@ export function SkillCardCarousel({
     };
   }, [emblaApi, onSelect]);
 
-  // Re-init when skills list changes (filter change)
+  // Reset to page 0 + card 0 when the skills list changes (filter/sort)
+  useEffect(() => {
+    setCarouselPage(0);
+    setSelectedIndex(0);
+  }, [skills]);
+
+  // Re-init embla and jump to card 0 whenever the page changes
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.reInit();
     emblaApi.scrollTo(0, true);
     setSelectedIndex(0);
-  }, [emblaApi, skills]);
+  }, [emblaApi, carouselPage]);
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  function goToPage(p) {
+    setCarouselPage(Math.max(0, Math.min(totalPages - 1, p)));
+  }
 
   if (skills.length === 0) {
     return (
@@ -191,19 +206,26 @@ export function SkillCardCarousel({
     );
   }
 
+  const globalIndex = carouselPage * PAGE_SIZE + selectedIndex;
+
   return (
     <div className="relative select-none">
-      {/* Counter */}
+      {/* Global counter */}
       <div className="text-center text-[11px] text-[#9e9e9e] mb-3 tabular-nums">
-        <span className="text-[#141414] font-semibold">{selectedIndex + 1}</span>
+        <span className="text-[#141414] font-semibold">{globalIndex + 1}</span>
         <span className="mx-1">/</span>
         <span>{skills.length.toLocaleString()}</span>
+        {totalPages > 1 && (
+          <span className="ml-2 text-[#b8b3a6]">
+            · page {carouselPage + 1}/{totalPages}
+          </span>
+        )}
       </div>
 
-      {/* Embla viewport */}
+      {/* Embla viewport — only renders PAGE_SIZE items */}
       <div className="overflow-hidden -mx-2" ref={emblaRef}>
         <div className="flex gap-3 px-2">
-          {skills.map((skill, i) => (
+          {pageItems.map((skill, i) => (
             <div key={skill.skill_path} className="flex-none w-[88%] min-w-0">
               <SkillCard
                 skill={skill}
@@ -218,7 +240,7 @@ export function SkillCardCarousel({
         </div>
       </div>
 
-      {/* Nav row */}
+      {/* Card nav row */}
       <div className="flex items-center justify-between mt-5 px-1">
         <button
           onClick={scrollPrev}
@@ -228,9 +250,9 @@ export function SkillCardCarousel({
           ← Prev
         </button>
 
-        {/* Dot indicators (show up to 7) */}
+        {/* Dot indicators for within-page position */}
         <div className="flex items-center gap-1.5">
-          {skills.slice(0, 7).map((_, i) => (
+          {pageItems.slice(0, 7).map((_, i) => (
             <button
               key={i}
               onClick={() => emblaApi?.scrollTo(i)}
@@ -238,12 +260,11 @@ export function SkillCardCarousel({
               style={{
                 width: i === selectedIndex ? 8 : 5,
                 height: i === selectedIndex ? 8 : 5,
-                backgroundColor:
-                  i === selectedIndex ? "#393939" : "#c5c0b5",
+                backgroundColor: i === selectedIndex ? "#393939" : "#c5c0b5",
               }}
             />
           ))}
-          {skills.length > 7 && (
+          {pageItems.length > 7 && (
             <span className="text-[10px] text-[#9e9e9e] ml-0.5">…</span>
           )}
         </div>
@@ -257,7 +278,31 @@ export function SkillCardCarousel({
         </button>
       </div>
 
-      {/* Swipe hint */}
+      {/* Page nav row — only shown when there are multiple pages */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 px-1">
+          <button
+            onClick={() => goToPage(carouselPage - 1)}
+            disabled={carouselPage === 0}
+            className="flex items-center gap-1.5 px-3 py-2 text-[11px] border border-[#393939] bg-[#f4f0e4] disabled:opacity-20 hover:bg-[#eee9d7] font-mono font-semibold"
+          >
+            « Prev 20
+          </button>
+
+          <span className="text-[10px] text-[#9e9e9e] tabular-nums">
+            {carouselPage * PAGE_SIZE + 1}–{Math.min((carouselPage + 1) * PAGE_SIZE, skills.length)} of {skills.length.toLocaleString()}
+          </span>
+
+          <button
+            onClick={() => goToPage(carouselPage + 1)}
+            disabled={carouselPage >= totalPages - 1}
+            className="flex items-center gap-1.5 px-3 py-2 text-[11px] border border-[#393939] bg-[#f4f0e4] disabled:opacity-20 hover:bg-[#eee9d7] font-mono font-semibold"
+          >
+            Next 20 »
+          </button>
+        </div>
+      )}
+
       <p className="text-center text-[10px] text-[#b8b3a6] mt-3">
         swipe to explore · {skills.length.toLocaleString()} skills
       </p>
