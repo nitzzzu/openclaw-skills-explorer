@@ -3,6 +3,8 @@ import { SectionTitle } from "../components/SectionTitle";
 import { RiskBadge } from "../components/RiskBadge";
 import { FindingsModal } from "../components/FindingsModal";
 import { AuthorSignal } from "../components/AuthorSignal";
+import { SkillCardCarousel } from "../components/SkillCardCarousel";
+import { useWindowWidth } from "../hooks/useWindowWidth";
 import { Info, Github } from "lucide-react";
 
 const PER_PAGE = 50;
@@ -48,6 +50,7 @@ export function BrowseSection({ data, authorFilter }) {
   const [page, setPage] = useState(0);
   const [modal, setModal] = useState(null);
   const [descModal, setDescModal] = useState(null);
+  const isMobile = useWindowWidth() < 768;
 
   useEffect(() => {
     if (authorFilter !== undefined) {
@@ -198,7 +201,7 @@ export function BrowseSection({ data, authorFilter }) {
             setPage(0);
           }}
           placeholder="Search path, author, description…"
-          className="border border-[#9e9e9e] bg-[#fbf7eb] px-2 py-1 text-[12px] font-mono w-72 outline-none focus:border-[#393939]"
+          className="border border-[#9e9e9e] bg-[#fbf7eb] px-2 py-1 text-[12px] font-mono w-full sm:w-72 outline-none focus:border-[#393939]"
         />
         <select
           value={catFilter}
@@ -279,192 +282,204 @@ export function BrowseSection({ data, authorFilter }) {
         </span>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px] border-collapse">
-          <thead>
-            <tr className="border-b border-dashed border-[#393939]">
-              {COLS.map((col) => (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  className={`py-1.5 pr-3 text-[#6b6b6b] font-semibold uppercase tracking-wide select-none cursor-pointer hover:text-[#141414]
-                    ${col.right ? "text-right" : "text-left"}`}
-                >
-                  {col.label}
-                  <SortIcon col={col.key} sortKey={sortKey} sortDir={sortDir} />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paged.length === 0 && (
-              <tr>
-                <td colSpan={10} className="py-8 text-center text-[#9e9e9e]">
-                  No skills match your filters.
-                </td>
-              </tr>
-            )}
-            {paged.map((row, i) => (
-              <tr
-                key={row.skill_path}
-                className={`border-b border-[#e4e0d6] hover:bg-[#f4f0e4] transition-colors ${i % 2 === 1 ? "bg-[#f9f5ee]" : ""}`}
-              >
-                {/* Skill path + version + description */}
-                <td className="py-1.5 pr-3 max-w-0 w-[28%]">
-                  <span className="flex items-center gap-1 min-w-0">
-                    <a
-                      href={`${GH_BASE}${row.skill_path}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-[#3b6fd4] hover:underline whitespace-nowrap overflow-hidden text-ellipsis leading-tight min-w-0 truncate"
-                      title={row.skill_path}
+      {isMobile ? (
+        <SkillCardCarousel
+          skills={sorted}
+          findingsBySkill={findingsBySkill}
+          authorProfiles={authorProfiles}
+          onAuthorFilter={filterByAuthor}
+          onFindingsClick={(path) => setModal(path)}
+        />
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px] border-collapse">
+              <thead>
+                <tr className="border-b border-dashed border-[#393939]">
+                  {COLS.map((col) => (
+                    <th
+                      key={col.key}
+                      onClick={() => handleSort(col.key)}
+                      className={`py-1.5 pr-3 text-[#6b6b6b] font-semibold uppercase tracking-wide select-none cursor-pointer hover:text-[#141414]
+                        ${col.right ? "text-right" : "text-left"}`}
                     >
-                      {row.skill_path.split("/").pop()}
-                      {row.skill_version && (
-                        <span className="text-[#9e9e9e] ml-1">
-                          v{row.skill_version.replace(/^v/i, "")}
-                        </span>
+                      {col.label}
+                      <SortIcon col={col.key} sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paged.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="py-8 text-center text-[#9e9e9e]">
+                      No skills match your filters.
+                    </td>
+                  </tr>
+                )}
+                {paged.map((row, i) => (
+                  <tr
+                    key={row.skill_path}
+                    className={`border-b border-[#e4e0d6] hover:bg-[#f4f0e4] transition-colors ${i % 2 === 1 ? "bg-[#f9f5ee]" : ""}`}
+                  >
+                    {/* Skill path + version + description */}
+                    <td className="py-1.5 pr-3 max-w-0 w-[28%]">
+                      <span className="flex items-center gap-1 min-w-0">
+                        <a
+                          href={`${GH_BASE}${row.skill_path}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-[#3b6fd4] hover:underline whitespace-nowrap overflow-hidden text-ellipsis leading-tight min-w-0 truncate"
+                          title={row.skill_path}
+                        >
+                          {row.skill_path.split("/").pop()}
+                          {row.skill_version && (
+                            <span className="text-[#9e9e9e] ml-1">
+                              v{row.skill_version.replace(/^v/i, "")}
+                            </span>
+                          )}
+                        </a>
+                        {row.skill_description && (
+                          <button
+                            onClick={() =>
+                              setDescModal({
+                                name: row.skill_path.split("/").pop(),
+                                text: row.skill_description,
+                              })
+                            }
+                            className="text-[#c0bbb0] hover:text-[#3b6fd4] flex-shrink-0"
+                            title="Show description"
+                          >
+                            <Info size={11} strokeWidth={2} />
+                          </button>
+                        )}
+                      </span>
+                    </td>
+
+                    {/* Author — click to filter + GitHub link + enrichment signals */}
+                    <td className="py-1.5 pr-3 w-[18%]">
+                      <div className="flex items-center gap-1 group">
+                        <button
+                          onClick={() => filterByAuthor(row.skill_author)}
+                          className="font-mono text-[11px] text-[#474747] hover:text-[#3b6fd4] hover:underline text-left truncate max-w-[90px]"
+                          title={`Filter by ${row.skill_author}`}
+                        >
+                          {row.skill_author}
+                        </button>
+                        <AuthorSignal
+                          profile={authorProfiles[row.skill_author]}
+                        />
+                        <a
+                          href={`https://github.com/${row.skill_author}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#c0bbb0] hover:text-[#141414] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                          title={`GitHub: ${row.skill_author}`}
+                        >
+                          <Github size={11} strokeWidth={1.8} />
+                        </a>
+                      </div>
+                    </td>
+
+                    {/* Category */}
+                    <td className="py-1.5 pr-3 text-[#6b6b6b] truncate max-w-[120px]">
+                      {row.category}
+                    </td>
+
+                    {/* Risk */}
+                    <td className="py-1.5 pr-3">
+                      <RiskBadge level={row.level} />
+                    </td>
+
+                    {/* Findings */}
+                    <td className="py-1.5 pr-3 text-right">
+                      {row.findings > 0 ? (
+                        <button
+                          onClick={() => setModal(row.skill_path)}
+                          className="font-semibold tabular-nums hover:underline cursor-pointer"
+                          style={{
+                            color:
+                              row.level === "CRITICAL"
+                                ? "#c6392c"
+                                : row.level === "HIGH"
+                                  ? "#e07b39"
+                                  : "#b45309",
+                          }}
+                        >
+                          {row.findings}
+                        </button>
+                      ) : (
+                        <span className="text-[#9e9e9e]">—</span>
                       )}
-                    </a>
-                    {row.skill_description && (
-                      <button
-                        onClick={() =>
-                          setDescModal({
-                            name: row.skill_path.split("/").pop(),
-                            text: row.skill_description,
-                          })
-                        }
-                        className="text-[#c0bbb0] hover:text-[#3b6fd4] flex-shrink-0"
-                        title="Show description"
-                      >
-                        <Info size={11} strokeWidth={2} />
-                      </button>
-                    )}
-                  </span>
-                </td>
+                    </td>
 
-                {/* Author — click to filter + GitHub link + enrichment signals */}
-                <td className="py-1.5 pr-3 w-[18%]">
-                  <div className="flex items-center gap-1 group">
-                    <button
-                      onClick={() => filterByAuthor(row.skill_author)}
-                      className="font-mono text-[11px] text-[#474747] hover:text-[#3b6fd4] hover:underline text-left truncate max-w-[90px]"
-                      title={`Filter by ${row.skill_author}`}
-                    >
-                      {row.skill_author}
-                    </button>
-                    <AuthorSignal
-                      profile={authorProfiles[row.skill_author]}
-                    />
-                    <a
-                      href={`https://github.com/${row.skill_author}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#c0bbb0] hover:text-[#141414] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                      title={`GitHub: ${row.skill_author}`}
-                    >
-                      <Github size={11} strokeWidth={1.8} />
-                    </a>
-                  </div>
-                </td>
+                    {/* Size */}
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                      {fmtSize(row.folder_size_bytes)}
+                    </td>
 
-                {/* Category */}
-                <td className="py-1.5 pr-3 text-[#6b6b6b] truncate max-w-[120px]">
-                  {row.category}
-                </td>
+                    {/* Files */}
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                      {row.file_count > 0 ? row.file_count : "—"}
+                    </td>
 
-                {/* Risk */}
-                <td className="py-1.5 pr-3">
-                  <RiskBadge level={row.level} />
-                </td>
+                    {/* Scripts */}
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                      {row.script_count > 0 ? row.script_count : "—"}
+                    </td>
 
-                {/* Findings */}
-                <td className="py-1.5 pr-3 text-right">
-                  {row.findings > 0 ? (
-                    <button
-                      onClick={() => setModal(row.skill_path)}
-                      className="font-semibold tabular-nums hover:underline cursor-pointer"
-                      style={{
-                        color:
-                          row.level === "CRITICAL"
-                            ? "#c6392c"
-                            : row.level === "HIGH"
-                              ? "#e07b39"
-                              : "#b45309",
-                      }}
-                    >
-                      {row.findings}
-                    </button>
-                  ) : (
-                    <span className="text-[#9e9e9e]">—</span>
-                  )}
-                </td>
+                    {/* Docs */}
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
+                      {row.md_count > 0 ? row.md_count : "—"}
+                    </td>
 
-                {/* Size */}
-                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
-                  {fmtSize(row.folder_size_bytes)}
-                </td>
+                    {/* Added */}
+                    <td className="py-1.5 text-right text-[#9e9e9e] tabular-nums whitespace-nowrap">
+                      {fmt(row.date_added)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-                {/* Files */}
-                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
-                  {row.file_count > 0 ? row.file_count : "—"}
-                </td>
-
-                {/* Scripts */}
-                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
-                  {row.script_count > 0 ? row.script_count : "—"}
-                </td>
-
-                {/* Docs */}
-                <td className="py-1.5 pr-3 text-right tabular-nums text-[#6b6b6b]">
-                  {row.md_count > 0 ? row.md_count : "—"}
-                </td>
-
-                {/* Added */}
-                <td className="py-1.5 text-right text-[#9e9e9e] tabular-nums whitespace-nowrap">
-                  {fmt(row.date_added)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            onClick={() => setPage(0)}
-            disabled={page === 0}
-            className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
-          >
-            «
-          </button>
-          <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
-          >
-            ← Prev
-          </button>
-          <span className="text-[11px] text-[#6b6b6b]">
-            Page {page + 1} / {totalPages} · {sorted.length.toLocaleString()}{" "}
-            skills
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
-          >
-            Next →
-          </button>
-          <button
-            onClick={() => setPage(totalPages - 1)}
-            disabled={page >= totalPages - 1}
-            className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
-          >
-            »
-          </button>
-        </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setPage(0)}
+                disabled={page === 0}
+                className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
+              >
+                «
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
+              >
+                ← Prev
+              </button>
+              <span className="text-[11px] text-[#6b6b6b]">
+                Page {page + 1} / {totalPages} · {sorted.length.toLocaleString()}{" "}
+                skills
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
+              >
+                Next →
+              </button>
+              <button
+                onClick={() => setPage(totalPages - 1)}
+                disabled={page >= totalPages - 1}
+                className="px-2 py-1 text-[11px] border border-dashed border-[#393939] disabled:opacity-30 hover:bg-[#eee9d7]"
+              >
+                »
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {descModal && (
