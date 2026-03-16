@@ -991,6 +991,95 @@ def set_meta(con: duckdb.DuckDBPyConnection, key: str, value: str):
 
 
 # ---------------------------------------------------------------------------
+# State file (catalog_state.json) — persists last_commit_hash across runs
+# so the DuckDB can be dropped from git and cached via CI instead.
+# ---------------------------------------------------------------------------
+
+def read_state_file(state_file: str) -> dict:
+    p = Path(state_file)
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def write_state_file(state_file: str, last_commit_hash: str, last_run: str):
+    Path(state_file).write_text(json.dumps({
+        "last_commit_hash": last_commit_hash,
+        "last_run": last_run,
+    }, indent=2) + "\n")
+
+
+def bootstrap_from_parquet(con: duckdb.DuckDBPyConnection, export_dir: str, state_file: str) -> bool:
+    """
+    Populate a fresh empty DuckDB from the committed parquet files.
+    Called on a CI cache miss so we avoid a costly full rescan.
+    Returns True if bootstrap succeeded.
+    """
+    out = Path(export_dir)
+    skills_pq = out / "skills.parquet"
+    findings_pq = out / "findings.parquet"
+    authors_pq = out / "authors.parquet"
+
+    if not skills_pq.exists():
+        return False
+
+    print("Bootstrapping DB from parquet files (cache miss recovery)...")
+
+    # skills — dates were exported as VARCHAR, cast back to TIMESTAMP
+    # raw_frontmatter will be NULL; that's fine, it's not used in exports
+    con.execute(f"""
+        INSERT INTO skills (
+            skill_path, skill_name, skill_author, skill_display_name, skill_description,
+            skill_version, skill_tags, category,
+            date_added, date_updated, date_deleted,
+            is_deleted, is_blacklisted, blacklist_reason,
+            scan_risk_level, scan_findings_count, scan_date,
+            folder_size_bytes, file_count, script_count, md_count
+        )
+        SELECT
+            skill_path, skill_name, skill_author, skill_display_name, skill_description,
+            skill_version, skill_tags, category,
+            TRY_CAST(date_added   AS TIMESTAMP),
+            TRY_CAST(date_updated AS TIMESTAMP),
+            TRY_CAST(date_deleted AS TIMESTAMP),
+            is_deleted, is_blacklisted, blacklist_reason,
+            scan_risk_level, scan_findings_count,
+            TRY_CAST(scan_date AS TIMESTAMP),
+            folder_size_bytes, file_count, script_count, md_count
+        FROM read_parquet('{skills_pq}')
+    """)
+
+    if findings_pq.exists():
+        # category was aliased to finding_category on export
+        con.execute(f"""
+            INSERT INTO scan_findings
+            SELECT
+                id, skill_path, rule_id, severity,
+                finding_category AS category,
+                title, description, file, line, evidence, recommendation,
+                TRY_CAST(scanned_at AS TIMESTAMP)
+            FROM read_parquet('{findings_pq}')
+        """)
+
+    if authors_pq.exists():
+        con.execute(f"INSERT INTO authors SELECT * FROM read_parquet('{authors_pq}')")
+
+    # Restore meta from state file
+    state = read_state_file(state_file)
+    if state.get("last_commit_hash"):
+        set_meta(con, "last_commit_hash", state["last_commit_hash"])
+    if state.get("last_run"):
+        set_meta(con, "last_run", state["last_run"])
+
+    skill_count = con.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
+    print(f"  Bootstrapped {skill_count} skills from parquet")
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Incremental Sync
 # ---------------------------------------------------------------------------
 
@@ -1646,6 +1735,12 @@ Examples:
         default=500,
         help="Max authors to enrich per run (default: 500)",
     )
+    parser.add_argument(
+        "--state-file",
+        default="",
+        help="Path to catalog_state.json (defaults to catalog_state.json next to --db). "
+             "Stores last_commit_hash so the DuckDB can be rebuilt from parquet on a cache miss.",
+    )
     args = parser.parse_args()
 
     repo_path = args.repo_path
@@ -1661,6 +1756,11 @@ Examples:
     print(f"  Blacklist: {args.blacklist}")
     print()
 
+    # Resolve state file path (defaults to catalog_state.json next to the DB)
+    state_file = args.state_file or str(Path(args.db).parent / "catalog_state.json")
+    print(f"  State    : {state_file}")
+    print()
+
     print("Connecting to DuckDB and loading duck_tails...")
     con = get_db(args.db)
 
@@ -1668,6 +1768,13 @@ Examples:
         print_stats(con)
         con.close()
         return
+
+    # On a CI cache miss the DB will be empty. Rebuild from parquet files
+    # so we can continue incrementally without a full rescan.
+    if not args.full_rescan and args.export_dir:
+        skill_count = con.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
+        if skill_count == 0:
+            bootstrap_from_parquet(con, args.export_dir, state_file)
 
     # Load blacklist
     blacklist = load_blacklist(Path(args.blacklist))
@@ -1706,6 +1813,9 @@ Examples:
             )
         if args.export_dir:
             export_parquet(con, args.export_dir)
+        # Keep state file in sync even when nothing changed
+        write_state_file(state_file, head_commit,
+                         get_meta(con, "last_run") or datetime.now(timezone.utc).isoformat())
         con.close()
         return
 
@@ -1795,8 +1905,10 @@ Examples:
             deleted_count += reconciled
 
     # Update meta
+    last_run_ts = datetime.now(timezone.utc).isoformat()
     set_meta(con, "last_commit_hash", head_commit)
-    set_meta(con, "last_run", datetime.now(timezone.utc).isoformat())
+    set_meta(con, "last_run", last_run_ts)
+    write_state_file(state_file, head_commit, last_run_ts)
 
     print(f"\nDone:")
     print(f"  Added:   {added_count}")

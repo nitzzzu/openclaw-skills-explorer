@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# DuckDB is a build artifact — cached by CI, not committed to git
+skills_catalog.duckdb
